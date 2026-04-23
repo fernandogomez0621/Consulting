@@ -1,8 +1,7 @@
-"""Funciones para mostrar correlaciones."""
+"""Funciones para mostrar correlaciones con graficas Plotly."""
 
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.graph_objects as go
 from modulos.visualizaciones.estilos import *
 
 
@@ -10,11 +9,23 @@ def graficar_correlaciones(corr_json, metodo='pearson'):
     data = corr_json.get(metodo, {})
     df_corr = pd.DataFrame(data)
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    sns.heatmap(df_corr, annot=True, fmt='.3f', cmap='RdBu_r', center=0,
-                vmin=-1, vmax=1, ax=ax, square=True)
-    ax.set_title(f'Correlacion {metodo.capitalize()}', fontweight='bold')
-    plt.tight_layout()
+    fig = go.Figure(data=go.Heatmap(
+        z=df_corr.values,
+        x=df_corr.columns,
+        y=df_corr.index,
+        colorscale='RdBu_r',
+        zmid=0, zmin=-1, zmax=1,
+        text=df_corr.round(3).values,
+        texttemplate='%{text}',
+        textfont=dict(size=11),
+        hovertemplate='%{x} vs %{y}<br>Correlacion: %{z:.4f}<extra></extra>'
+    ))
+
+    fig.update_layout(
+        height=500, width=600,
+        title=f'Correlacion {metodo.capitalize()}',
+        **LAYOUT_BASE
+    )
     return fig
 
 

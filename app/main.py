@@ -6,9 +6,6 @@ Andres Fernando Gomez Rojas
 
 import streamlit as st
 import pandas as pd
-from modulos.visualizaciones.estilos import aplicar_estilo
-
-aplicar_estilo()
 
 st.set_page_config(
     page_title="Costos Equipos - Prueba Tecnica",
@@ -53,14 +50,10 @@ if pagina == "Resumen":
     info_modelos = cargar_json_eda('info_modelos_completa')
 
     col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Registros", "3,530")
-    with col2:
-        st.metric("R2 Equipo 1", "0.9913")
-    with col3:
-        st.metric("R2 Equipo 2", "0.9852")
-    with col4:
-        st.metric("Horizonte", "6 meses")
+    col1.metric("Registros", "3,530")
+    col2.metric("R2 Equipo 1", "0.9913")
+    col3.metric("R2 Equipo 2", "0.9852")
+    col4.metric("Horizonte", "6 meses")
 
     st.markdown("---")
     col_a, col_b = st.columns(2)
@@ -78,7 +71,6 @@ if pagina == "Resumen":
             ml = info_modelos.get(target, {}).get('mejor_modelo_ml', {})
             st.markdown(f"**{target}:** {ml.get('nombre', '')} (R2={ml.get('metricas_test', {}).get('r2', 0):.4f})")
         st.markdown("---")
-        st.markdown("**Observaciones clave:**")
         for o in info_modelos.get('Price_Equipo1', {}).get('observaciones', [])[:3]:
             st.markdown(f"- {o}")
 
@@ -97,10 +89,9 @@ elif pagina == "EDA":
 
     with tab1:
         df = cargar_equipos()
-        fig = graficar_series_historicas(df, ['Price_X', 'Price_Y', 'Price_Z', 'Price_Equipo1', 'Price_Equipo2'])
-        st.pyplot(fig)
-        fig2 = graficar_series_con_covid(df, ['Price_X', 'Price_Y', 'Price_Z', 'Price_Equipo1', 'Price_Equipo2'])
-        st.pyplot(fig2)
+        cols = ['Price_X', 'Price_Y', 'Price_Z', 'Price_Equipo1', 'Price_Equipo2']
+        st.plotly_chart(graficar_series_historicas(df, cols), use_container_width=True)
+        st.plotly_chart(graficar_series_con_covid(df, cols), use_container_width=True)
 
     with tab2:
         st.markdown("#### Estadisticas descriptivas")
@@ -113,7 +104,7 @@ elif pagina == "EDA":
     with tab3:
         corr = cargar_json_eda('correlaciones')
         metodo = st.selectbox("Metodo", ["pearson", "spearman"])
-        st.pyplot(graficar_correlaciones(corr, metodo))
+        st.plotly_chart(graficar_correlaciones(corr, metodo), use_container_width=True)
         st.markdown("#### VIF (Multicolinealidad)")
         st.dataframe(formatear_vif(cargar_json_eda('vif')), use_container_width=True)
         st.markdown("#### Causalidad de Granger")
@@ -156,22 +147,22 @@ elif pagina == "Modelos":
         st.dataframe(formatear_comparacion(comparacion, target), use_container_width=True)
         fig = graficar_comparacion_modelos(comparacion, target)
         if fig:
-            st.pyplot(fig)
+            st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
         target_r = st.selectbox("Equipo", ['Price_Equipo1', 'Price_Equipo2'], key='res')
         st.markdown(f"**Modelo:** {residuos_data.get(target_r, {}).get('modelo', '')}")
-        st.pyplot(graficar_residuos(residuos_data.get(target_r, {}), target_r))
+        st.plotly_chart(graficar_residuos(residuos_data.get(target_r, {}), target_r), use_container_width=True)
         pi = info_modelos.get(target_r, {}).get('prophet', {}).get('residuos', {})
         if pi:
             st.markdown("#### Residuos Prophet")
-            st.pyplot(graficar_residuos(pi, f"{target_r} (Prophet)"))
+            st.plotly_chart(graficar_residuos(pi, f"{target_r} (Prophet)"), use_container_width=True)
 
     with tab3:
         target_f = st.selectbox("Equipo", ['Price_Equipo1', 'Price_Equipo2'], key='feat')
         fig_fi = graficar_feature_importance(fi, target_f)
         if fig_fi:
-            st.pyplot(fig_fi)
+            st.plotly_chart(fig_fi, use_container_width=True)
 
     with tab4:
         target_p = st.selectbox("Equipo", ['Price_Equipo1', 'Price_Equipo2'], key='proph')
@@ -212,13 +203,13 @@ elif pagina == "Proyecciones":
         with tab:
             mensual = proy.get('resumen_mensual', {}).get(target, {})
             st.dataframe(tabla_proyeccion_mensual(mensual), use_container_width=True)
-            st.pyplot(graficar_proyeccion_equipo(df_hist, mensual, target))
+            st.plotly_chart(graficar_proyeccion_equipo(df_hist, mensual, target), use_container_width=True)
             inc = resumen_incertidumbre(proy, target)
             for k, v in inc.items():
                 st.markdown(f"**{k}:** {v}")
 
     st.markdown("---")
-    st.pyplot(graficar_incertidumbre(proy))
+    st.plotly_chart(graficar_incertidumbre(proy), use_container_width=True)
 
 
 elif pagina == "Prediccion":
@@ -227,7 +218,7 @@ elif pagina == "Prediccion":
 
     from modulos.datos.carga_s3 import cargar_modelo, cargar_json_eda
     from modulos.predicciones.predictor import predecir_prophet
-    import matplotlib.pyplot as plt
+    import plotly.graph_objects as go
     from modulos.visualizaciones.estilos import COLOR_PRINCIPAL, COLOR_SECUNDARIO
 
     stats = cargar_json_eda('estadisticas_descriptivas')
@@ -290,35 +281,84 @@ elif pagina == "Prediccion":
             </div>""", unsafe_allow_html=True)
 
         st.markdown("---")
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-        for i, (target, label) in enumerate([('Price_Equipo1', 'Equipo 1'), ('Price_Equipo2', 'Equipo 2')]):
-            r = resultados[target]
-            color = COLOR_PRINCIPAL if i == 0 else COLOR_SECUNDARIO
-            axes[i].barh(['Prediccion'], [r['prediccion']], color=color, alpha=0.8, height=0.4)
-            axes[i].errorbar(r['prediccion'], 0,
-                             xerr=[[r['prediccion'] - r['ic_inferior']], [r['ic_superior'] - r['prediccion']]],
-                             fmt='o', color='black', capsize=8, capthick=2, markersize=8)
-            axes[i].set_title(label, fontweight='bold', fontsize=13)
-            axes[i].set_xlabel('Precio')
-            axes[i].annotate(f"${r['prediccion']:,.2f}\n[${r['ic_inferior']:,.2f} - ${r['ic_superior']:,.2f}]",
-                             xy=(r['prediccion'], 0), xytext=(r['prediccion'], 0.3),
-                             ha='center', fontsize=10,
-                             bbox=dict(boxstyle='round,pad=0.3', facecolor='wheat', alpha=0.5))
-        plt.tight_layout()
-        st.pyplot(fig)
 
+        # Grafica interactiva con Plotly
+        fig = go.Figure()
+
+        equipos = ['Equipo 1', 'Equipo 2']
+        preds = [resultados['Price_Equipo1']['prediccion'], resultados['Price_Equipo2']['prediccion']]
+        lowers = [resultados['Price_Equipo1']['ic_inferior'], resultados['Price_Equipo2']['ic_inferior']]
+        uppers = [resultados['Price_Equipo1']['ic_superior'], resultados['Price_Equipo2']['ic_superior']]
+        colores = [COLOR_PRINCIPAL, COLOR_SECUNDARIO]
+
+        for i in range(2):
+            fig.add_trace(go.Bar(
+                name=equipos[i], x=[equipos[i]], y=[preds[i]],
+                marker_color=colores[i],
+                error_y=dict(type='data',
+                             symmetric=False,
+                             array=[uppers[i] - preds[i]],
+                             arrayminus=[preds[i] - lowers[i]],
+                             thickness=2, width=8),
+                text=[f'${preds[i]:,.2f}'], textposition='outside',
+                hovertemplate=(f'{equipos[i]}<br>'
+                               f'Prediccion: ${preds[i]:,.2f}<br>'
+                               f'IC: [${lowers[i]:,.2f} - ${uppers[i]:,.2f}]<extra></extra>')
+            ))
+
+        fig.update_layout(
+            height=400,
+            title='Prediccion con Intervalos de Confianza (95%)',
+            yaxis_title='Precio',
+            showlegend=False,
+            template='plotly_white',
+            font=dict(family='Segoe UI, sans-serif', size=12)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Gauge charts
+        st.markdown("---")
+        cg1, cg2 = st.columns(2)
+
+        for col_g, target, label, color in [
+            (cg1, 'Price_Equipo1', 'Equipo 1', COLOR_PRINCIPAL),
+            (cg2, 'Price_Equipo2', 'Equipo 2', COLOR_SECUNDARIO)
+        ]:
+            with col_g:
+                r = resultados[target]
+                rango_min = r['ic_inferior'] * 0.9
+                rango_max = r['ic_superior'] * 1.1
+
+                fig_gauge = go.Figure(go.Indicator(
+                    mode='gauge+number',
+                    value=r['prediccion'],
+                    number=dict(prefix='$', valueformat=',.2f'),
+                    title=dict(text=label),
+                    gauge=dict(
+                        axis=dict(range=[rango_min, rango_max]),
+                        bar=dict(color=color),
+                        steps=[
+                            dict(range=[rango_min, r['ic_inferior']], color='#f0f0f0'),
+                            dict(range=[r['ic_inferior'], r['ic_superior']], color='rgba(74, 144, 217, 0.15)'),
+                            dict(range=[r['ic_superior'], rango_max], color='#f0f0f0')
+                        ],
+                        threshold=dict(line=dict(color=color, width=3), thickness=0.8, value=r['prediccion'])
+                    )
+                ))
+                fig_gauge.update_layout(height=280, margin=dict(l=30, r=30, t=50, b=20))
+                st.plotly_chart(fig_gauge, use_container_width=True)
+
+        # Tabla detalle
         st.markdown("---")
         detalle = pd.DataFrame({
             'Concepto': ['Fecha', 'Price X', 'Price Y', 'Price Z',
-                         'Equipo 1 - Prediccion', 'Equipo 1 - IC Inferior', 'Equipo 1 - IC Superior',
-                         'Equipo 2 - Prediccion', 'Equipo 2 - IC Inferior', 'Equipo 2 - IC Superior'],
-            'Valor': [str(fecha), f"{precio_x:.2f}", f"{precio_y:.2f}", f"{precio_z:.2f}",
-                      f"{resultados['Price_Equipo1']['prediccion']:.2f}",
-                      f"{resultados['Price_Equipo1']['ic_inferior']:.2f}",
-                      f"{resultados['Price_Equipo1']['ic_superior']:.2f}",
-                      f"{resultados['Price_Equipo2']['prediccion']:.2f}",
-                      f"{resultados['Price_Equipo2']['ic_inferior']:.2f}",
-                      f"{resultados['Price_Equipo2']['ic_superior']:.2f}"]
+                         'Equipo 1 - Prediccion', 'Equipo 1 - IC 95%',
+                         'Equipo 2 - Prediccion', 'Equipo 2 - IC 95%'],
+            'Valor': [str(fecha), f"${precio_x:.2f}", f"${precio_y:.2f}", f"${precio_z:.2f}",
+                      f"${resultados['Price_Equipo1']['prediccion']:,.2f}",
+                      f"[${resultados['Price_Equipo1']['ic_inferior']:,.2f} - ${resultados['Price_Equipo1']['ic_superior']:,.2f}]",
+                      f"${resultados['Price_Equipo2']['prediccion']:,.2f}",
+                      f"[${resultados['Price_Equipo2']['ic_inferior']:,.2f} - ${resultados['Price_Equipo2']['ic_superior']:,.2f}]"]
         })
         st.dataframe(detalle, use_container_width=True, hide_index=True)
 
